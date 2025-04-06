@@ -11,7 +11,7 @@ func main() {
 	global.LoadConfig()
 	gin.SetMode(gin.ReleaseMode)
 	//加载redis
-	//还未实现
+	global.InitRedis()
 	//连接数据库
 	global.InitDB()
 	//启动路由

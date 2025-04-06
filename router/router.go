@@ -9,5 +9,6 @@ func InitRouterAndStartServer() {
 	router := gin.Default()
 	root := router.Group(viper.GetString("http.path"))
 	setCommonRouters(root)
+	setUserRouters(root)
 	router.Run(":8099")
 }
