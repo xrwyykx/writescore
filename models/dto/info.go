@@ -12,9 +12,12 @@ type UserInfo struct {
 	Avatar        string    `json:"avatar" gorm:"column:avatar"`
 }
 
-//func GetUserInfo(c *gin.Context, id int64) (data dao.User, err error) {
-//	if err := global.GetDbConn(c).Model(&dao.User{}).Where("id = ?", id).First(&data).Error; err != nil {
-//		return dao.User{}, err
-//	}
-//	return data, nil
-//}
+type UpdateInfoMap struct {
+	Username string `json:"username" gorm:"column:username"`
+	NickName string `json:"nickName" gorm:"column:nick_name"`
+	Avatar   string `json:"avatar" gorm:"column:avatar"`
+}
+
+type UpdatePasswordMap struct {
+	Password string `json:"password" gorm:"column:password"`
+}
