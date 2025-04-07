@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 	"writescore/data/db/comon"
 	"writescore/models/co"
@@ -14,10 +15,12 @@ func Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败"+err.Error()))
 		return
 	}
+	log.Printf("Received register data: %+v\n", data)
 	if err := comon.Register(c, data); err != nil {
 		c.JSON(http.StatusBadRequest, co.BadRequest("用户注册失败"+err.Error()))
 		return
 	}
+
 	c.JSON(http.StatusOK, co.Success("用户注册成功", nil))
 }
 func Login(c *gin.Context) {
