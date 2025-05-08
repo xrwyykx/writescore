@@ -42,6 +42,8 @@ func GetUploadToken(c *gin.Context) {
 
 func RestoreImageInfo(c *gin.Context) {
 	userId := app.GetUserId(c)
+	fmt.Println("1212121???")
+	fmt.Println(userId)
 	var param dto.RestoreImageInfoMap
 	if err := c.ShouldBindJSON(&param); err != nil {
 		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败"))

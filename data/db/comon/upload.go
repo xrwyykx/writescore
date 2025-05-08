@@ -129,15 +129,17 @@ func RestoreImageInfo(c *gin.Context, userId int64, param dto.RestoreImageInfoMa
 		UserID:     userId,
 		Content:    essay,
 		SubmitTime: nowTime,
+		Title:      param.Title,
 		//WordCount: ,//计算字符串长度
-		UploadMethod: 0,            //图片上传
-		ImageId:      imageInfo.ID, //实现与image_info表的关联
+		//UploadMethod: 0,            //图片上传
+		ImageId: imageInfo.ID, //实现与image_info表的关联
 	}
 	if err := global.GetDbConn(c).Model(&dao.Essay{}).Create(&essayInfo).Error; err != nil {
 		return dto.ImageToEssay{}, err
 	}
 
 	//返回信息
+	data.EssayId = essayInfo.ID
 	data.SubmitTime = nowTime
 	data.SubmitTimeMar = utils.MarshalTime(data.SubmitTime)
 	data.Content = essay
