@@ -41,7 +41,7 @@ func Login(c *gin.Context) {
 		saveSessionToRedis(c, session, data.Username)
 
 		// 设置cookie，确保在所有路径下可访问
-		c.SetCookie("SESSION", session, 3600, "/", "localhost", false, false)
+		c.SetCookie("SESSION", session, 3600, "/", "", false, false)
 
 		// 打印调试信息
 		log.Printf("Setting cookie: SESSION=%s", session)
