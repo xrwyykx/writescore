@@ -51,6 +51,7 @@ func UpdatePassword(c *gin.Context, id int64, password string) error {
 	if err != nil {
 		return err
 	}
+	//这个接口没有登录但是可以正常使用，只是无法返回错误，会显示修改成功
 	if err = global.GetDbConn(c).Model(&dao.User{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"password": string(hashedPass),
 	}).Error; err != nil {

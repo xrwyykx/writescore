@@ -1,13 +1,10 @@
 package comon
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 	"time"
 	"writescore/global"
 	"writescore/models/dao"
@@ -72,31 +69,31 @@ func CheckLogin(c *gin.Context, param dto.LoginMap) error {
 
 	//如果验证通过，那么接下来就要给他生成jwt了
 	//token, err := middlewares.GEnerateJWT(data.ID)
-	session := generateSession()
-	saveSessionToRedis(c, session, data.Username)
-	c.SetCookie("SESSION", session, 3600, "/", "", false, true)
+	//session := generateSession()
+	//saveSessionToRedis(c, session, data.Username)
+	//c.SetCookie("SESSION", session, 3600, "/", "", false, true)
 
 	return nil
 }
 
-func generateSession() string {
-	return uuid.New().String()
-}
-func saveSessionToRedis(c *gin.Context, session string, userName string) {
-	redisClient := global.GetRedisConn()
-	var user dao.User
-	if err := global.GetDbConn(c).Model(&dao.User{}).Where("username = ?", userName).First(&user).Error; err != nil {
-		log.Println("获取用户信息失败")
-		return
-	}
-	userJson, err := json.Marshal(user)
-	if err != nil {
-		log.Println("序列化用户信息失败:", err)
-		return
-	}
-	//err = redisClient.HSet(c, global.ProjectName+"sessions:"+session, "sessionAttr:user_login", string(userJson)).Err()
-	err = redisClient.HSet(c, global.ProjectName+":sessions:"+session, "sessionAttr:user_login", string(userJson)).Err()
-	if err != nil {
-		log.Println("将sessioin存入redis失败:", err)
-	}
-}
+//func generateSession() string {
+//	return uuid.New().String()
+//}
+//func saveSessionToRedis(c *gin.Context, session string, userName string) {
+//	redisClient := global.GetRedisConn()
+//	var user dao.User
+//	if err := global.GetDbConn(c).Model(&dao.User{}).Where("username = ?", userName).First(&user).Error; err != nil {
+//		log.Println("获取用户信息失败")
+//		return
+//	}
+//	userJson, err := json.Marshal(user)
+//	if err != nil {
+//		log.Println("序列化用户信息失败:", err)
+//		return
+//	}
+//	//err = redisClient.HSet(c, global.ProjectName+"sessions:"+session, "sessionAttr:user_login", string(userJson)).Err()
+//	err = redisClient.HSet(c, global.ProjectName+":sessions:"+session, "sessionAttr:user_login", string(userJson)).Err()
+//	if err != nil {
+//		log.Println("将sessioin存入redis失败:", err)
+//	}
+//}

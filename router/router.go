@@ -3,7 +3,6 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	"net/http"
 )
 
 func InitRouterAndStartServer() {
@@ -23,15 +22,16 @@ func InitRouterAndStartServer() {
 
 func CorsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "*")
-		c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, OPTIONS")
+		// 设置允许的源
+		c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, OPTIONS, DELETE")
 		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Expose-Headers", "*")
+		c.Header("Access-Control-Expose-Headers", "Set-Cookie, Content-Length, Content-Range")
 
+		// 处理预检请求
 		if c.Request.Method == "OPTIONS" {
-			c.JSON(http.StatusOK, "")
-			c.Abort()
+			c.AbortWithStatus(204)
 			return
 		}
 		c.Next()
