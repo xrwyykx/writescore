@@ -26,10 +26,10 @@ func CorsHandler() gin.HandlerFunc {
 		// 设置允许的源
 		c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, OPTIONS, DELETE")
+		c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Expose-Headers", "Set-Cookie, Content-Length, Content-Range")
-		c.Header("Access-Control-Max-Age", "86400") //24h
+		c.Header("Access-Control-Expose-Headers", "Set-Cookie")
+		c.Header("Access-Control-Max-Age", "86400")
 
 		// 处理预检请求
 		if c.Request.Method == "OPTIONS" {

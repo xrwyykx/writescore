@@ -2,8 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"writescore/data/db/comon"
@@ -11,6 +9,9 @@ import (
 	"writescore/models/co"
 	"writescore/models/dao"
 	"writescore/models/dto"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func Register(c *gin.Context) {
@@ -40,8 +41,8 @@ func Login(c *gin.Context) {
 		session := generateSession()
 		saveSessionToRedis(c, session, data.Username)
 
-		// 设置cookie，确保在所有路径下可访问
-		c.SetCookie("SESSION", session, 3600, "/", "", false, false)
+		// 设置cookie，使用最简单的配置
+		c.SetCookie("SESSION", session, 3600, "/", "", false, true)
 
 		// 打印调试信息
 		log.Printf("Setting cookie: SESSION=%s", session)
