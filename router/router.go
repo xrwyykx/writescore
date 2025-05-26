@@ -1,5 +1,6 @@
 package router
 
+import "C"
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -28,6 +29,7 @@ func CorsHandler() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, OPTIONS, DELETE")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Expose-Headers", "Set-Cookie, Content-Length, Content-Range")
+		c.Header("Access-Control-Max-Age", "86400") //24h
 
 		// 处理预检请求
 		if c.Request.Method == "OPTIONS" {
