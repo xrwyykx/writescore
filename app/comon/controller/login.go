@@ -47,7 +47,7 @@ func Login(c *gin.Context) {
 		// 打印调试信息
 		log.Printf("Setting cookie: SESSION=%s", session)
 
-		c.JSON(http.StatusOK, co.Success("登录成功", nil))
+		c.JSON(http.StatusOK, co.Success("登录成功", gin.H{"session": session}))
 	}
 }
 
