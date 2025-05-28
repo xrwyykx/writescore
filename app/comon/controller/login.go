@@ -28,6 +28,7 @@ func Register(c *gin.Context) {
 
 	c.JSON(http.StatusOK, co.Success("用户注册成功", nil))
 }
+
 func Login(c *gin.Context) {
 	var data dto.LoginMap
 	if err := c.ShouldBindJSON(&data); err != nil {
@@ -41,11 +42,12 @@ func Login(c *gin.Context) {
 		session := generateSession()
 		saveSessionToRedis(c, session, data.Username)
 
-		// 设置cookie，使用最简单的配置
-		c.SetCookie("SESSION", session, 3600, "/", "", false, true)
+		// 设置cookie，不指定 domain，让浏览器自动处理
+		c.SetCookie("SESSION", session, 3600, "/", "", false, false)
 
 		// 打印调试信息
 		log.Printf("Setting cookie: SESSION=%s", session)
+		log.Printf("Response headers: %v", c.Writer.Header())
 
 		c.JSON(http.StatusOK, co.Success("登录成功", gin.H{"session": session}))
 	}
@@ -54,6 +56,7 @@ func Login(c *gin.Context) {
 func generateSession() string {
 	return uuid.New().String()
 }
+
 func saveSessionToRedis(c *gin.Context, session string, userName string) {
 	redisClient := global.GetRedisConn()
 	var user dao.User
@@ -66,7 +69,6 @@ func saveSessionToRedis(c *gin.Context, session string, userName string) {
 		log.Println("序列化用户信息失败:", err)
 		return
 	}
-	//err = redisClient.HSet(c, global.ProjectName+"sessions:"+session, "sessionAttr:user_login", string(userJson)).Err()
 	err = redisClient.HSet(c, global.ProjectName+":sessions:"+session, "sessionAttr:user_login", string(userJson)).Err()
 	if err != nil {
 		log.Println("将sessioin存入redis失败:", err)
