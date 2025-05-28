@@ -2,6 +2,8 @@ package router
 
 //import "C"
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
@@ -33,9 +35,15 @@ func CorsHandler() gin.HandlerFunc {
 
 		// 处理预检请求
 		if c.Request.Method == "OPTIONS" {
+			// 打印请求头，用于调试
+			log.Printf("OPTIONS 请求头: %v", c.Request.Header)
 			c.AbortWithStatus(204)
 			return
 		}
+
+		// 打印请求信息，用于调试
+		log.Printf("请求信息: Method=%s, Path=%s, Cookie=%v", c.Request.Method, c.Request.URL.Path, c.Request.Cookies())
+
 		c.Next()
 	}
 }
