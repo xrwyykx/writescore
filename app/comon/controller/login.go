@@ -48,6 +48,7 @@ func Login(c *gin.Context) {
 		// 打印调试信息
 		log.Printf("Setting cookie: SESSION=%s", session)
 		log.Printf("Response headers: %v", c.Writer.Header())
+		log.Printf("Request Origin: %s", c.Request.Header.Get("Origin"))
 
 		c.JSON(http.StatusOK, co.Success("登录成功", gin.H{"session": session}))
 	}
