@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"log"
 	"net/http"
 	"writescore/models/co"
 
@@ -9,34 +10,21 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. 检查JWT token
 		tokenstring := c.GetHeader("Authorization")
-		if tokenstring != "" {
-			claims, err := PraseToken(tokenstring)
-			if err == nil {
-				c.Set("user_id", claims.UserId)
-				c.Next()
-				return
-			}
-		}
-
-		// 2. 检查SESSION cookie
-		sessionCookie, err := c.Cookie("SESSION")
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, co.BadRequest("未登录或会话已过期"))
+		if tokenstring == "" {
+			c.JSON(http.StatusBadRequest, co.BadRequest("未获取到token"))
 			c.Abort()
 			return
 		}
-
-		// 3. 验证SESSION
-		userId, err := validateSession(sessionCookie)
+		claims, err := PraseToken(tokenstring)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, co.BadRequest("会话无效"))
+			c.JSON(http.StatusBadRequest, co.BadRequest("token无效"))
 			c.Abort()
 			return
 		}
-
-		c.Set("user_id", userId)
+		//若token有效，就将user_id藏在上下文中
+		c.Set("user_id", claims.UserId)
+		log.Printf("Token valid, user_id: %d\n", claims.UserId)
 		c.Next()
 	}
 }
