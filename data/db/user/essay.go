@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,6 +14,8 @@ import (
 	"writescore/models/dao"
 	"writescore/models/dto"
 	"writescore/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data dto.RatingResult, err error) {
@@ -22,25 +23,38 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 	if tx.Error != nil {
 		return dto.RatingResult{}, fmt.Errorf("开启事务失败：%w", tx.Error)
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			err = fmt.Errorf("事务回滚: %v", r)
+		}
+	}()
+
 	var content string
 	err = tx.Model(&dao.Essay{}).Where("id = ? and user_id = ?", param.EssayId, userId).Select("content").First(&content).Error
 	if err != nil {
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("获取文章内容失败:%w", err)
 	}
+
 	//先获取评分标准包括哪些
 	var creteria []dao.ScoringCriteria
 	if err = tx.Model(&dao.ScoringCriteria{}).Find(&creteria).Error; err != nil {
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("获取评分标准失败:%w", err)
 	}
-	//下面需要开启事务，如果其中有一个不可以正常完成，所有操作都要回滚，并且返回错误信息
+
+	if len(creteria) == 0 {
+		tx.Rollback()
+		return dto.RatingResult{}, fmt.Errorf("未找到评分标准")
+	}
 
 	//把标题存进essay表
 	if param.Title != "" {
 		if err = tx.Model(&dao.Essay{}).Where("id = ?", param.EssayId).Updates(map[string]interface{}{
 			"title": param.Title,
 		}).Error; err != nil {
+			tx.Rollback()
 			return dto.RatingResult{}, fmt.Errorf("保存用户标题失败:%w", err)
 		}
 	}
@@ -51,14 +65,14 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 		return dto.RatingResult{}, err
 	}
 
-	var perScores []dto.PerScore
+	perScores := make([]dto.PerScore, 0, len(creteria)) // 预分配容量
 	for _, key := range creteria {
 		score, feekback, err := evaluateCriterion(content, key.CriteriaName) //依次获取各项指标的结果
-
 		if err != nil {
 			tx.Rollback() //失败回滚
 			return dto.RatingResult{}, fmt.Errorf("获取各项指标的评分以及反馈结果失败:%w", err)
 		}
+
 		scoreDetail := dao.EssayScoringDetails{
 			EssayID:    param.EssayId,
 			CriteriaID: key.ID,
@@ -90,7 +104,11 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 			Feekback:      feekback,
 			CriteriaId:    key.ID,
 		})
+	}
 
+	if len(perScores) == 0 {
+		tx.Rollback()
+		return dto.RatingResult{}, fmt.Errorf("评分结果为空")
 	}
 
 	log.Println("perScores:")
@@ -98,13 +116,14 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 		log.Printf("CriteriaName: %s, CriteriaScore: %.2f, Feedback: %s, CriteriaId: %d",
 			perScore.CriteriaName, perScore.CriteriaScore, perScore.Feekback, perScore.CriteriaId)
 	}
+
 	finalScore := calculateFinalScore(perScores, creteria)
 	finalFeekback, err := calculateFinalFeekback(content, perScores)
-	//将最终的结果和反馈保存到作文表
 	if err != nil {
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("获取最终结果失败:%w", err)
 	}
+
 	if err := tx.Model(&dao.Essay{}).
 		Where("id = ?", param.EssayId).
 		Updates(map[string]interface{}{
@@ -114,11 +133,14 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("将最终评分以及反馈保存到数据库失败:%w", err)
 	}
+
 	if err = tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("提交事务失败:%w", err)
 	}
-	return dto.RatingResult{EssayId: param.EssayId,
+
+	return dto.RatingResult{
+		EssayId:       param.EssayId,
 		PerScore:      perScores,
 		FinalFeekback: finalFeekback,
 		FinalScore:    finalScore,
@@ -490,3 +512,170 @@ func GetEssayDetails(c *gin.Context, userId int64, id int) (data dto.EssayDetail
 }
 
 //https://platform.deepseek.com/usage  deepseek开放平台
+
+// StreamRatingEssay 流式评分接口
+func StreamRatingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) error {
+	// 设置SSE头部
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Transfer-Encoding", "chunked")
+
+	tx := global.GetDbConn(c).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("开启事务失败：%w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var content string
+	err := tx.Model(&dao.Essay{}).Where("id = ? and user_id = ?", param.EssayId, userId).Select("content").First(&content).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("获取文章内容失败:%w", err)
+	}
+
+	// 获取评分标准
+	var creteria []dao.ScoringCriteria
+	if err = tx.Model(&dao.ScoringCriteria{}).Find(&creteria).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("获取评分标准失败:%w", err)
+	}
+
+	if len(creteria) == 0 {
+		tx.Rollback()
+		return fmt.Errorf("未找到评分标准")
+	}
+
+	// 保存标题
+	if param.Title != "" {
+		if err = tx.Model(&dao.Essay{}).Where("id = ?", param.EssayId).Updates(map[string]interface{}{
+			"title": param.Title,
+		}).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("保存用户标题失败:%w", err)
+		}
+	}
+
+	var originScore sql.NullFloat64
+	if err = tx.Model(&dao.Essay{}).Where("id = ?", param.EssayId).Select("score").First(&originScore).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	perScores := make([]dto.PerScore, 0, len(creteria))
+
+	// 发送开始评分的消息
+	c.SSEvent("message", map[string]interface{}{
+		"type": "start",
+		"data": "开始评分...",
+	})
+	c.Writer.Flush()
+
+	for _, key := range creteria {
+		// 发送正在评分的标准
+		c.SSEvent("message", map[string]interface{}{
+			"type": "progress",
+			"data": fmt.Sprintf("正在评分: %s", key.CriteriaName),
+		})
+		c.Writer.Flush()
+
+		score, feedback, err := evaluateCriterion(content, key.CriteriaName)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("获取各项指标的评分以及反馈结果失败:%w", err)
+		}
+
+		scoreDetail := dao.EssayScoringDetails{
+			EssayID:    param.EssayId,
+			CriteriaID: key.ID,
+			Score:      score,
+			Feedback:   feedback,
+			CreateTime: time.Now(),
+		}
+
+		if originScore.Valid {
+			if err = tx.Model(&dao.EssayScoringDetails{}).Where("essay_id = ? and criteria_id = ?", param.EssayId, scoreDetail.CriteriaID).Updates(map[string]interface{}{
+				"score":       scoreDetail.Score,
+				"feedback":    scoreDetail.Feedback,
+				"create_time": scoreDetail.CreateTime,
+			}).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("更新评分信息失败:%w", err)
+			}
+		} else {
+			if err = tx.Model(&dao.EssayScoringDetails{}).Create(&scoreDetail).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("将各项指标保存到数据库失败：%w", err)
+			}
+		}
+
+		perScore := dto.PerScore{
+			CriteriaName:  key.CriteriaName,
+			CriteriaScore: score,
+			Feekback:      feedback,
+			CriteriaId:    key.ID,
+		}
+		perScores = append(perScores, perScore)
+
+		// 发送单个标准的评分结果
+		c.SSEvent("message", map[string]interface{}{
+			"type": "criterion_result",
+			"data": perScore,
+		})
+		c.Writer.Flush()
+	}
+
+	if len(perScores) == 0 {
+		tx.Rollback()
+		return fmt.Errorf("评分结果为空")
+	}
+
+	// 计算最终分数
+	finalScore := calculateFinalScore(perScores, creteria)
+	finalFeedback, err := calculateFinalFeekback(content, perScores)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("获取最终结果失败:%w", err)
+	}
+
+	// 更新最终分数和反馈
+	if err := tx.Model(&dao.Essay{}).
+		Where("id = ?", param.EssayId).
+		Updates(map[string]interface{}{
+			"score":    finalScore,
+			"feedback": finalFeedback,
+		}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("将最终评分以及反馈保存到数据库失败:%w", err)
+	}
+
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("提交事务失败:%w", err)
+	}
+
+	// 发送最终结果
+	c.SSEvent("message", map[string]interface{}{
+		"type": "final_result",
+		"data": dto.RatingResult{
+			EssayId:       param.EssayId,
+			PerScore:      perScores,
+			FinalFeekback: finalFeedback,
+			FinalScore:    finalScore,
+		},
+	})
+	c.Writer.Flush()
+
+	// 发送完成消息
+	c.SSEvent("message", map[string]interface{}{
+		"type": "complete",
+		"data": "评分完成",
+	})
+	c.Writer.Flush()
+
+	return nil
+}

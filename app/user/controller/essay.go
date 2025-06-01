@@ -87,3 +87,24 @@ func GetEssayDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, co.Success("获取作文详情成功", data))
 
 }
+
+// StreamRatingEssay 流式评分控制器
+func StreamRatingEssay(c *gin.Context) {
+	var param dto.RatingEssayMap
+	if err := c.ShouldBindJSON(&param); err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败"+err.Error()))
+		return
+	}
+
+	userId := app.GetUserId(c)
+	if userId <= 0 {
+		c.JSON(http.StatusBadRequest, co.BadRequest("未登录"))
+		return
+	}
+
+	err := user.StreamRatingEssay(c, param, userId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("获取作文详情失败"+err.Error()))
+		return
+	}
+}

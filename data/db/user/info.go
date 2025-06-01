@@ -2,12 +2,13 @@ package user
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"writescore/global"
 	"writescore/models/dao"
 	"writescore/models/dto"
 	"writescore/utils"
+
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func GetUserInfo(c *gin.Context, id int64) (data dto.UserInfo, err error) {
@@ -18,17 +19,20 @@ func GetUserInfo(c *gin.Context, id int64) (data dto.UserInfo, err error) {
 	return data, nil
 }
 
-func UpdateUserInfo(c *gin.Context, id int64, param dto.UpdateInfoMap) error {
+func UpdateUserInfo(c *gin.Context, id int64, param dto.UpdateInfoMap) (data dto.UserInfo, err error) {
 	var count int64
 
 	//看看这个人存不存在
 	if param.Username != "" {
-		if err := global.GetDbConn(c).Model(&dao.User{}).Where("username = ?", param.Username).Count(&count).Error; err != nil {
-			return err
+		// 检查用户名是否重复，但排除当前用户自己的用户名
+		if err := global.GetDbConn(c).Model(&dao.User{}).
+			Where("username = ? AND id != ?", param.Username, id).
+			Count(&count).Error; err != nil {
+			return dto.UserInfo{}, err
 		}
 	}
 	if count > 0 {
-		return errors.New("用户名重复，请重新想一个")
+		return dto.UserInfo{}, errors.New("用户名重复，请重新想一个")
 	}
 	updateMap := map[string]interface{}{}
 	if param.Avatar != "" {
@@ -41,9 +45,15 @@ func UpdateUserInfo(c *gin.Context, id int64, param dto.UpdateInfoMap) error {
 		updateMap["nick_name"] = param.NickName
 	}
 	if err := global.GetDbConn(c).Model(&dao.User{}).Where("id = ?", id).Updates(&updateMap).Error; err != nil {
-		return err
+		return dto.UserInfo{}, err
 	}
-	return nil
+
+	// 获取更新后的用户信息
+	if err := global.GetDbConn(c).Model(&dao.User{}).Where("id = ?", id).Select("*").First(&data).Error; err != nil {
+		return dto.UserInfo{}, err
+	}
+	data.CreateTimeMar = utils.MarshalTime(data.CreateTime)
+	return data, nil
 }
 
 func UpdatePassword(c *gin.Context, id int64, password string) error {

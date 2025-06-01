@@ -2,15 +2,16 @@ package controller
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/qiniu/go-sdk/v7/auth"
-	"github.com/qiniu/go-sdk/v7/storage"
 	"net/http"
 	"writescore/app"
 	"writescore/data/db/comon"
 	"writescore/global"
 	"writescore/models/co"
 	"writescore/models/dto"
+
+	"github.com/gin-gonic/gin"
+	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/storage"
 )
 
 func RecognizeText(c *gin.Context) {
@@ -57,4 +58,48 @@ func RestoreImageInfo(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, co.Success("解析图片信息成功", data))
+}
+
+func SaveEssay(c *gin.Context) {
+	userId := app.GetUserId(c)
+	if userId <= 0 {
+		c.JSON(http.StatusBadRequest, co.BadRequest("用户未登录"))
+		return
+	}
+
+	var param dto.SaveEssayMap
+	if err := c.ShouldBindJSON(&param); err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败"+err.Error()))
+		return
+	}
+
+	data, err := comon.SaveEssay(c, userId, param)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("保存文章失败"+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, co.Success("保存文章成功", data))
+}
+
+func UpdateEssayContent(c *gin.Context) {
+	userId := app.GetUserId(c)
+	if userId <= 0 {
+		c.JSON(http.StatusBadRequest, co.BadRequest("用户未登录"))
+		return
+	}
+
+	var param dto.UpdateEssayContentMap
+	if err := c.ShouldBindJSON(&param); err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败"+err.Error()))
+		return
+	}
+
+	data, err := comon.UpdateEssayContent(c, userId, param)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("修改文章内容失败"+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, co.Success("修改文章内容成功", data))
 }

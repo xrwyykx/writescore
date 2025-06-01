@@ -1,12 +1,13 @@
 package controller
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"writescore/app"
 	"writescore/data/db/user"
 	"writescore/models/co"
 	"writescore/models/dto"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetUserInfo(c *gin.Context) {
@@ -21,16 +22,18 @@ func GetUserInfo(c *gin.Context) {
 
 func UpdateUserInfo(c *gin.Context) {
 	userId := app.GetUserId(c)
-	var data dto.UpdateInfoMap
-	if err := c.ShouldBindJSON(&data); err != nil {
+	var param dto.UpdateInfoMap
+	if err := c.ShouldBindJSON(&param); err != nil {
 		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败"+err.Error()))
 		return
 	}
-	if err := user.UpdateUserInfo(c, userId, data); err != nil {
-		c.JSON(http.StatusBadRequest, co.BadRequest("用户信息修改失败"+err.Error()))
+
+	data, err := user.UpdateUserInfo(c, userId, param)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("修改用户信息失败"+err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, co.Success("用户信息修改成功", nil))
+	c.JSON(http.StatusOK, co.Success("修改用户信息成功", data))
 }
 
 func UpdatePassword(c *gin.Context) {

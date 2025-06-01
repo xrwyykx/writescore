@@ -3,7 +3,6 @@ package comon
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,6 +12,8 @@ import (
 	"writescore/models/dao"
 	"writescore/models/dto"
 	"writescore/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 // GetAccessToken 获取新的 access_token
@@ -311,5 +312,83 @@ func RestoreImageInfo(c *gin.Context, userId int64, param dto.RestoreImageInfoMa
 		SubmitTime:    essayInfo.SubmitTime,
 		SubmitTimeMar: utils.MarshalTime(essayInfo.SubmitTime),
 		Content:       essay,
+	}, nil
+}
+
+// SaveEssay 保存用户输入的文章
+func SaveEssay(c *gin.Context, userId int64, param dto.SaveEssayMap) (data dto.ImageToEssay, err error) {
+	// 开启事务
+	tx := global.GetDbConn(c).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			err = fmt.Errorf("事务回滚: %v", r)
+		}
+	}()
+
+	nowTime := time.Now()
+
+	// 保存文章信息
+	essayInfo := dao.Essay{
+		UserID:     userId,
+		Content:    param.Content,
+		SubmitTime: nowTime,
+		// Title:      param.Title,
+	}
+
+	if err = tx.Create(&essayInfo).Error; err != nil {
+		tx.Rollback()
+		return dto.ImageToEssay{}, fmt.Errorf("保存文章信息失败: %v", err)
+	}
+
+	// 提交事务
+	if err = tx.Commit().Error; err != nil {
+		return dto.ImageToEssay{}, fmt.Errorf("提交事务失败: %v", err)
+	}
+
+	// 返回信息
+	return dto.ImageToEssay{
+		EssayId:       essayInfo.ID,
+		SubmitTime:    essayInfo.SubmitTime,
+		SubmitTimeMar: utils.MarshalTime(essayInfo.SubmitTime),
+		Content:       param.Content,
+	}, nil
+}
+
+// UpdateEssayContent 修改文章内容
+func UpdateEssayContent(c *gin.Context, userId int64, param dto.UpdateEssayContentMap) (data dto.ImageToEssay, err error) {
+	// 开启事务
+	tx := global.GetDbConn(c).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			err = fmt.Errorf("事务回滚: %v", r)
+		}
+	}()
+
+	// 检查文章是否存在且属于当前用户
+	var essay dao.Essay
+	if err = tx.Where("id = ? AND user_id = ?", param.EssayId, userId).First(&essay).Error; err != nil {
+		tx.Rollback()
+		return dto.ImageToEssay{}, fmt.Errorf("文章不存在或无权限修改: %w", err)
+	}
+
+	// 更新文章内容
+	if err = tx.Model(&essay).Update("content", param.Content).Error; err != nil {
+		tx.Rollback()
+		return dto.ImageToEssay{}, fmt.Errorf("更新文章内容失败: %w", err)
+	}
+
+	// 提交事务
+	if err = tx.Commit().Error; err != nil {
+		return dto.ImageToEssay{}, fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	// 返回更新后的文章信息
+	return dto.ImageToEssay{
+		EssayId:       essay.ID,
+		SubmitTime:    essay.SubmitTime,
+		SubmitTimeMar: utils.MarshalTime(essay.SubmitTime),
+		Content:       param.Content,
 	}, nil
 }

@@ -19,3 +19,13 @@ type ImageToEssay struct {
 type Shangchuan struct {
 	ImageURL string `json:"imageUrl" gorm:"column:image_url"`
 }
+
+type SaveEssayMap struct {
+	// Title   string `json:"title" binding:"required"`   // 文章标题
+	Content string `json:"content" binding:"required"` // 文章内容
+}
+
+type UpdateEssayContentMap struct {
+	EssayId int    `json:"essayId" binding:"required"` // 文章ID
+	Content string `json:"content" binding:"required"` // 修改后的文章内容
+}
