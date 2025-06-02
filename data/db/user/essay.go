@@ -446,13 +446,13 @@ func GetEssay(c *gin.Context, userId int64, param dto.GetEssayMap) (data []dto.A
 	if param.MinScore != 0 {
 		db = db.Where("score >= ?", param.MinScore)
 	} else {
-		db = db.Where("score >= ?", 0)
+		db = db.Where("score >= ? or score is null", 0)
 	}
 
 	if param.MaxScore != 0 { //没传默认是100
 		db = db.Where("score <= ?", param.MaxScore)
 	} else {
-		db = db.Where("score <= ?", 100)
+		db = db.Where("score <= ? or score is null", 100)
 	}
 	if err = db.Select("submit_time,id,score,title").Count(&total).Order("submit_time desc").
 		Offset((param.PageIndex - 1) * param.PageSize).Limit(param.PageSize).
@@ -463,22 +463,6 @@ func GetEssay(c *gin.Context, userId int64, param dto.GetEssayMap) (data []dto.A
 		data[i].SubmitTimeMar = utils.MarshalTime(data[i].SubmitTime)
 	}
 	return data, total, nil
-}
-
-type PerScore struct {
-	CriteriaId    int     `json:"criteriaId" gorm:"column:criteria_id"`
-	CriteriaName  string  `json:"criteriaName" gorm:"column:criteria_name"`
-	CriteriaScore float64 `json:"criteriaScore" gorm:"column:criteria_score"`
-	Feekback      string  `json:"feedback" gorm:"column:feedback"`
-}
-type EssayDetail struct {
-	PerScore      []PerScore
-	Content       string    `json:"content" gorm:"column:content"`
-	SubmitTime    time.Time `json:"-" gorm:"column:submit_time"`
-	SubmitTimeMar string    `json:"submitTime" gorm:"column:submitTime"`
-	Score         float64   `json:"score" gorm:"column:score"`
-	Feedback      string    `json:"feedback" gorm:"column:feedback"`
-	Title         string    `json:"title" gorm:"column:title"`
 }
 
 func GetEssayDetails(c *gin.Context, userId int64, id int) (data dto.EssayDetail, err error) {
