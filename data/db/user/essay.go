@@ -423,24 +423,35 @@ func GetEssay(c *gin.Context, userId int64, param dto.GetEssayMap) (data []dto.A
 	if param.Title != "" {
 		db = db.Where("title like ?", "%"+param.Title+"%")
 	}
-	//param.StartTime的类型是string,数据库中的submit_time是time.Time()类型  这样直接比较是对的吗？
+
+	// 处理开始时间
 	if param.StartTime != "" {
+		// 如果只包含日期，自动添加开始时间 00:00:00
+		if len(param.StartTime) == 10 { // 格式为 YYYY-MM-DD
+			param.StartTime = param.StartTime + " 00:00:00"
+		}
 		startTime, err := utils.StringToTime(param.StartTime)
 		if err != nil {
 			return make([]dto.AllEssays, 0), 0, err
 		}
 		db = db.Where("submit_time >= ?", startTime)
-	} else { //等于nil,默认从1999-09-09 09：09：09 09最早
-		db.Where("submit_time >= ?", "1999-09-09 09:09:09")
+	} else { // 默认从最早时间开始
+		db = db.Where("submit_time >= ?", "1999-09-09 00:00:00")
 	}
+
+	// 处理结束时间
 	if param.EndTime != "" {
-		endTime, err := utils.StringToTime(param.StartTime)
+		// 如果只包含日期，自动添加结束时间 23:59:59
+		if len(param.EndTime) == 10 { // 格式为 YYYY-MM-DD
+			param.EndTime = param.EndTime + " 23:59:59"
+		}
+		endTime, err := utils.StringToTime(param.EndTime)
 		if err != nil {
 			return make([]dto.AllEssays, 0), 0, err
 		}
 		db = db.Where("submit_time <= ?", endTime)
-	} else { //等于nil,默认从2999-09-09 09：09：09 09最晚
-		db.Where("submit_time <= ?", "2999-09-09 09:09:09")
+	} else { // 默认到最晚时间
+		db = db.Where("submit_time <= ?", "2999-09-09 23:59:59")
 	}
 
 	if param.MinScore != 0 {
