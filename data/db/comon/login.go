@@ -16,9 +16,9 @@ func Register(c *gin.Context, param dto.RegisterMap) error {
 	if param.Username == "" || param.Password == "" {
 		return errors.New("请输入正确的用户名或密码")
 	}
-	if param.Avatar == "" {
-		return errors.New("速速上传一个可爱的头像")
-	}
+	//if param.Avatar == "" {
+	//	return errors.New("速速上传一个可爱的头像")
+	//}
 	var count int64
 	if err := global.GetDbConn(c).Model(&dao.User{}).Where("username = ?", param.Username).Count(&count).Error; err != nil {
 		return err
@@ -40,7 +40,7 @@ func Register(c *gin.Context, param dto.RegisterMap) error {
 		Password:   string(hashedPassword),
 		CreateTime: time.Now(),
 		NickName:   param.NickName,
-		Avatar:     param.Avatar,
+		//Avatar:     param.Avatar,
 	}
 	if err := global.GetDbConn(c).Model(&dao.User{}).Create(&user).Error; err != nil {
 		return err

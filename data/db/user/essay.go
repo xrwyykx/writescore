@@ -490,7 +490,7 @@ func GetEssayDetails(c *gin.Context, userId int64, id int) (data dto.EssayDetail
 		Joins("join scoring_criteria sc on essay_scoring_details.criteria_id = sc.id").
 		Select("sc.criteria_name,sc.id as criteria_id,essay_scoring_details.score as criteria_score,essay_scoring_details.feedback").
 		Find(&perScore).Error
-	//Joins("joins")
+
 	if err != nil {
 		return dto.EssayDetail{}, fmt.Errorf("获取评分详情失败: %w", err)
 	}
