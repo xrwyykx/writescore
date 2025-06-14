@@ -13,6 +13,7 @@ func setCommonRouters(root *gin.RouterGroup) {
 	root.POST("/api/common/update-essay-content", controller.UpdateEssayContent) //修改文章内容
 	root.POST("/api/common/register", controller.Register)                       //注册
 	root.POST("/api/common/login", controller.Login)                             //登录
+	root.POST("/api/common/logout", controller.Logout)                           //退出登录
 	root.POST("/api/common/shibie", controller.RecognizeText)                    //识别文字
 	//root.POST("/api/common/get-access-token", controller.GetAccessToken)     //获取新的
 }

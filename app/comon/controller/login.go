@@ -43,7 +43,7 @@ func Login(c *gin.Context) {
 		saveSessionToRedis(c, session, data.Username)
 
 		// 设置cookie，不指定 domain，让浏览器自动处理
-		c.SetCookie("SESSION", session, 3600, "/", "", false, false)
+		c.SetCookie("SESSION", session, 10800, "/", "", false, false)
 
 		// 打印调试信息
 		log.Printf("Setting cookie: SESSION=%s", session)
@@ -74,4 +74,25 @@ func saveSessionToRedis(c *gin.Context, session string, userName string) {
 	if err != nil {
 		log.Println("将sessioin存入redis失败:", err)
 	}
+}
+
+func Logout(c *gin.Context) {
+	// 获取当前session
+	session, err := c.Cookie("SESSION")
+	if err != nil {
+		c.JSON(http.StatusOK, co.Success("退出成功", nil))
+		return
+	}
+
+	// 从Redis中删除session
+	redisClient := global.GetRedisConn()
+	err = redisClient.Del(c, global.ProjectName+":sessions:"+session).Err()
+	if err != nil {
+		log.Println("删除Redis session失败:", err)
+	}
+
+	// 清除cookie
+	c.SetCookie("SESSION", "", -1, "/", "", false, false)
+
+	c.JSON(http.StatusOK, co.Success("退出成功", nil))
 }
