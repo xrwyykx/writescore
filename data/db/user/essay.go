@@ -151,13 +151,33 @@ func evaluateCriterion(content string, criteriaName string) (score float64, feed
 	prompt := fmt.Sprintf(`
 请严格以JSON格式返回，包含"score"和"feedback"字段，不要包含其他内容，不要使用markdown格式或代码块，直接返回JSON对象。
 feedback字段只返回详细的反馈信息，"score"字段只返回数字评分
+
 评分标准:"%s"
 作文内容:%s
 
-请提供:
-1. 该标准的得分（0-100分）
-2. 详细的反馈，解释与该标准相关的优点和不足
-`, criteriaName, content)
+请严格按照以下评分标准进行评分：
+1. 50分以下：文章存在严重问题，如：
+   - 内容过于简单或空洞
+   - 逻辑混乱，结构不清晰
+   - 语言表达生硬，用词简单
+   - 字数明显不足
+   - 有明显的语法或表达错误
+
+2. 50-75分：文章基本合格，但仍有明显不足，如：
+   - 内容基本完整但不够深入
+   - 结构基本清晰但不够严谨
+   - 语言表达基本通顺但不够优美
+   - 字数基本达标但不够充实
+
+3. 75-100分：文章优秀，具有以下特点：
+   - 内容充实，论述深入
+   - 结构严谨，逻辑清晰
+   - 语言优美，表达准确
+   - 字数充足，论述充分
+   - 有独特的见解或创新的表达
+
+请根据以上标准，结合具体评分标准"%s"，给出客观的分数和详细的反馈。
+`, criteriaName, content, criteriaName)
 
 	response, err := callDeepseekAPI(prompt)
 	if err != nil {
@@ -269,16 +289,39 @@ func calculateFinalFeekback(content string, perScores []dto.PerScore) (finalFeek
 
 	// Prepare the prompt for Deepseek
 	prompt := fmt.Sprintf(`
-		根据以下作文和详细评估，提供一个全面、建设性的反馈总结。
+请根据以下作文和详细评估，提供一个全面、建设性的反馈总结。
 
-		作文:
-		%s
+作文:
+%s
 
-		详细评估:
-		%s
+详细评估:
+%s
 
-		请提供一个结构良好、鼓励性的反馈总结，突出优点、需要改进的地方和具体建议。
-	`, truncateContent(content, 1000), criteriaFeedback.String())
+请严格按照以下标准进行最终评分和反馈：
+
+1. 50分以下（不及格）：
+   - 文章存在严重问题，如内容过于简单、逻辑混乱、表达生硬等
+   - 需要指出具体的问题，并提供明确的改进建议
+   - 反馈应该具体指出哪些方面需要重点改进
+
+2. 50-75分（及格到良好）：
+   - 文章基本合格，但仍有明显不足
+   - 需要肯定文章的优点，同时指出需要改进的地方
+   - 提供具体的改进建议，帮助提升文章质量
+
+3. 75-100分（良好到优秀）：
+   - 文章整体优秀，具有较高的质量
+   - 充分肯定文章的优点和特色
+   - 可以提出一些进一步提升的建议
+
+请提供一个结构良好、客观公正的反馈总结，包括：
+1. 总体评价
+2. 主要优点
+3. 需要改进的地方
+4. 具体的改进建议
+
+注意：反馈要客观公正，不要过分褒奖或过分批评，要基于文章的实际质量给出合理的评价。
+`, truncateContent(content, 1000), criteriaFeedback.String())
 
 	// Call Deepseek API
 	response, err := callDeepseekAPI(prompt)
