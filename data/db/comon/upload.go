@@ -392,3 +392,65 @@ func UpdateEssayContent(c *gin.Context, userId int64, param dto.UpdateEssayConte
 		Content:       param.Content,
 	}, nil
 }
+
+// RestoreMultiImageInfo 处理多页图片信息
+func RestoreMultiImageInfo(c *gin.Context, userId int64, param dto.RestoreMultiImageInfoMap) (data dto.ImageToEssay, err error) {
+	tx := global.GetDbConn(c).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			err = fmt.Errorf("事务回滚: %v", r)
+		}
+	}()
+
+	nowTime := time.Now()
+	var allText strings.Builder
+	var imageIds []int
+
+	for i, page := range param.Pages {
+		imageInfo := dao.ImageInfo{
+			ImageURL:   page.ImageURL,
+			ImageName:  page.ImageName,
+			UploadTime: nowTime,
+		}
+		if err = tx.Create(&imageInfo).Error; err != nil {
+			tx.Rollback()
+			return dto.ImageToEssay{}, fmt.Errorf("保存第%d页图片信息失败: %v", i+1, err)
+		}
+		imageIds = append(imageIds, imageInfo.ID)
+
+		pageText, err := OcrHandwritingWithBaidu(page.ImageURL)
+		if err != nil {
+			tx.Rollback()
+			return dto.ImageToEssay{}, fmt.Errorf("识别第%d页图片文字失败: %v", i+1, err)
+		}
+
+		if i > 0 {
+			allText.WriteString("\n\n")
+		}
+		allText.WriteString(pageText)
+	}
+
+	essayInfo := dao.Essay{
+		UserID:     userId,
+		Content:    allText.String(),
+		SubmitTime: nowTime,
+		Title:      param.Title,
+		ImageId:    imageIds[0],
+	}
+	if err = tx.Create(&essayInfo).Error; err != nil {
+		tx.Rollback()
+		return dto.ImageToEssay{}, fmt.Errorf("保存文章信息失败: %v", err)
+	}
+
+	if err = tx.Commit().Error; err != nil {
+		return dto.ImageToEssay{}, fmt.Errorf("提交事务失败: %v", err)
+	}
+
+	return dto.ImageToEssay{
+		EssayId:       essayInfo.ID,
+		SubmitTime:    essayInfo.SubmitTime,
+		SubmitTimeMar: utils.MarshalTime(essayInfo.SubmitTime),
+		Content:       allText.String(),
+	}, nil
+}

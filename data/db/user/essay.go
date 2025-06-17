@@ -43,7 +43,6 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("获取评分标准失败:%w", err)
 	}
-
 	if len(creteria) == 0 {
 		tx.Rollback()
 		return dto.RatingResult{}, fmt.Errorf("未找到评分标准")
@@ -148,7 +147,6 @@ func RantingEssay(c *gin.Context, param dto.RatingEssayMap, userId int64) (data 
 }
 
 // 获得某指标的得分和反馈结果(调用deepseek)
-
 func evaluateCriterion(content string, criteriaName string) (score float64, feedback string, err error) {
 	prompt := fmt.Sprintf(`
 请严格以JSON格式返回，包含"score"和"feedback"字段，不要包含其他内容，不要使用markdown格式或代码块，直接返回JSON对象。
@@ -323,7 +321,7 @@ func callDeepseekAPI(prompt string) (string, error) {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer sk-dd54e9f4bf6c43f9a103f39965b1e008") // 替换为实际的授权令牌
+	req.Header.Add("Authorization", "Bearer sk-dd54e9f4bf6c43f9a103f39965b1e008")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

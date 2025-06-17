@@ -103,3 +103,25 @@ func UpdateEssayContent(c *gin.Context) {
 
 	c.JSON(http.StatusOK, co.Success("修改文章内容成功", data))
 }
+
+func RestoreMultiImageInfo(c *gin.Context) {
+	userId := app.GetUserId(c)
+	if userId <= 0 {
+		c.JSON(http.StatusBadRequest, co.BadRequest("用户未登录"))
+		return
+	}
+
+	var param dto.RestoreMultiImageInfoMap
+	if err := c.ShouldBindJSON(&param); err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("参数绑定失败: "+err.Error()))
+		return
+	}
+
+	data, err := comon.RestoreMultiImageInfo(c, userId, param)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, co.BadRequest("解析多页图片信息失败: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, co.Success("解析多页图片信息成功", data))
+}

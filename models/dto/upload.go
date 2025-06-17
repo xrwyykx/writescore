@@ -29,3 +29,13 @@ type UpdateEssayContentMap struct {
 	EssayId int    `json:"essayId" binding:"required"` // 文章ID
 	Content string `json:"content" binding:"required"` // 修改后的文章内容
 }
+
+type ImagePage struct {
+	ImageURL  string `json:"imageUrl" gorm:"column:image_url;not null"`
+	ImageName string `json:"imageName" gorm:"column:image_name;not null"`
+}
+
+type RestoreMultiImageInfoMap struct {
+	Pages []ImagePage `json:"pages" binding:"required,min=1"` // 至少需要一页
+	Title string      `json:"title" gorm:"column:title"`
+}
